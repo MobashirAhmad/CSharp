@@ -1,0 +1,106 @@
+﻿Multicast Delegates
+
+All delegate instances have multicast capability.This means that a delegate instance can reference not just a single target method, 
+but also a list of target methods. The + and += operators combine delegate instances. For example:
+
+SomeDelegate d = SomeMethod1;
+d += SomeMethod2;
+
+The last line is functionally the same as:
+
+d = d + SomeMethod2;
+
+Invoking d will now call both SomeMethod1 and SomeMethod2.
+Delegates are invoked in the order they are added.
+
+The - and -= operators remove the right delegate operand from the left delegate operand. For example:
+
+d -= SomeMethod1;
+
+Invoking d will now cause only SomeMethod2 to be invoked.
+
+Calling + or += on a delegate variable with a null value is legal, as is calling -= on a delegate variable with a single target (which
+will result in the delegate instance being null).
+
+NOTE
+Delegates are immutable, so when you call += or -=, you’re in fact creating a new delegate instance and assigning it to
+the existing variable.
+
+If a multicast delegate has a nonvoid return type, the caller receives the return value from the last method to be invoked.
+
+The preceding methods are still called, but their return values are discarded. 
+
+In most scenarios in which multicast delegates are used, they have void return types, so this subtlety does not arise.
+
+All delegate types implicitly derive from System.MulticastDelegate, which inherits from System.Delegate.
+
+C# compiles +, -,+=, and -= operations made on a delegate to the static Combine
+and Remove methods of the System.Delegate class.
+
+Instance Versus Static Method Targets
+
+When an instance method is assigned to a delegate object, the latter must maintain a reference not only to the method, but
+also to the instance to which the method belongs. The System.Delegate class’s Target property represents this instance
+(and will be null for a delegate referencing a static method).
+
+Generic Delegate Types
+
+A delegate type may contain generic type parameters. For example:
+
+public delegate T Transformer<T> (T arg);
+
+Here’s how we could use this delegate type:
+
+static double Square (double x) => x * x;
+static void Main()
+{
+Transformer<double> s = Square;
+Console.WriteLine (s (3.3)); // 10.89
+}
+
+The Func and Action Delegates
+
+With generic delegates, it becomes possible to write a small set of delegate types that are so general they can work for methods
+of any return type and any (reasonable) number of arguments. These delegates are the Func and Action delegates, defined in
+the System namespace (the in and out annotations indicate variance, which we will cover shortly):
+
+delegate TResult Func <out TResult> ();
+delegate TResult Func <in T, out TResult> (T arg);
+delegate TResult Func <in T1, in T2, out TResult>(T1 arg1, T2 arg2);
+... and so on, up to T16
+
+delegate void Action ();
+delegate void Action <in T> (T arg);
+delegate void Action <in T1, in T2> (T1 arg1, T2 arg2);
+... and so on, up to T16
+
+These delegates are extremely general. The Transformer delegate in our previous example can be replaced with a Func delegate
+that takes a single argument of type T and returns a sametyped value:
+
+public static void Transform<T> (
+T[] values, Func<T,T> transformer)
+{
+for (int i = 0; i < values.Length; i++)
+values[i] = transformer (values[i]);
+}
+The only practical scenarios not covered by these delegates are
+ref/out and pointer parameters.
+Delegate Compatibility
+Delegate types are all incompatible with one another, even if
+their signatures are the same:
+delegate void D1(); delegate void D2();
+...
+D1 d1 = Method1;
+D2 d2 = d1; // Compile-time error
+The following, however, is permitted:
+D2 d2 = new D2 (d1);
+Delegate instances are considered equal if they have the same
+type and method target(s). For multicast delegates, the order of
+the method targets is significant.
+Return type variance
+When you call a method, you may get back a type that is more
+specific than what you asked for. This is ordinary polymorphic
+behavior. In keeping with this, a delegate target method may
+return a more specific type than described by the delegate. This
+is covariance, and has been supported since C# 2.0:
+delegate object ObjectRetriever();
